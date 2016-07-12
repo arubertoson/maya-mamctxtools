@@ -15,6 +15,7 @@ from mampy.computils import (get_border_edges_from_selection,
 
 import mamtools
 import mamselect
+import mamuvs
 
 from mamctxtools import contexts
 
@@ -93,7 +94,7 @@ def detach(extract=False):
     focused_panel = cmds.getPanel(wf=True)
     if focused_panel.startswith('polyTexturePlacementPanel'):
         NotImplementedError('uv is currently in different universe.')
-        # uv.tear_off()
+        mamuvs.tear_off()
     elif focused_panel.startswith('modelPanel'):
         s = s[0]
         if s.type == api.MFn.kMeshPolygonComponent:
