@@ -93,7 +93,6 @@ def detach(extract=False):
 
     focused_panel = cmds.getPanel(wf=True)
     if focused_panel.startswith('polyTexturePlacementPanel'):
-        NotImplementedError('uv is currently in different universe.')
         mamuvs.tear_off()
     elif focused_panel.startswith('modelPanel'):
         s = s[0]
