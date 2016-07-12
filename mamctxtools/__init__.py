@@ -8,7 +8,7 @@ Mamctxtools Maya context sensitive scripts.
 __author__ = "Marcus Albertsson <marcus.arubertoson@gmail.com>"
 __copyright__ = 'Copyright 2016 Marcus Albertsson'
 __url__ = "http://github.com/arubertoson/mamctxtools"
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 __license__ = "MIT"
 
 
