@@ -6,6 +6,7 @@ import mampy
 from mampy.utils import DraggerCtx, mvp
 from mampy.dgcomps import MeshVert
 from mampy.dgnodes import DependencyNode
+from mampy.dgcontainers import SelectionList
 
 
 def get_distance_from_camera(sel):
@@ -32,8 +33,14 @@ class bevel(DraggerCtx):
         Create new bevel node and reset attribute values.
         """
         self.nodes = []
+        version = cmds.about(version=True)
+        if version == '2016 Extension 2 SP1':
+            bevel = cmds.polyBevel3
+        else:
+            bevel = cmds.polyBevel2
+
         for comp in mampy.selected().itercomps():
-            node = cmds.polyBevel3(
+            node = bevel(
                 list(comp),
                 offsetAsFraction=True,
                 fraction=0.2,
@@ -364,7 +371,7 @@ if __name__ == '__main__':
 
     # edge_slice()
     s = mampy.selected()
-    segments =
+    segments = None
     negative = False
     scale = 1.0 / (segments + 1)
 
