@@ -111,6 +111,7 @@ def merge():
         return logger.warn('Nothing Selected.')
 
     obj = s[0]
+    logger.debug(obj)
     t = obj.type
     if obj.type in [api.MFn.kTransform]:
         t = obj.get_shape().type
@@ -118,10 +119,14 @@ def merge():
     try:
         {
             api.MFn.kMeshVertComponent: functools.partial(mamtools.delete.merge_verts,
-                                                          True),
+                                                          False),
             api.MFn.kMeshPolygonComponent: mamtools.delete.merge_faces,
             api.MFn.kMeshEdgeComponent: mamtools.delete.collapse,
             api.MFn.kMesh: mamtools.mesh.combine_separate,
         }[t]()
     except KeyError:
         logger.warn('{} is not a valid type'.format(t))
+
+
+if __name__ == '__main__':
+    merge()
