@@ -37,7 +37,7 @@ class bevel(DraggerCtx):
         if version == '2016 Extension 2 SP1':
             bevel = cmds.polyBevel3
         else:
-            bevel = cmds.polyBevel2
+            bevel = cmds.polyBevel
 
         for comp in mampy.selected().itercomps():
             node = bevel(
