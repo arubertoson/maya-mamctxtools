@@ -128,5 +128,12 @@ def merge():
         logger.warn('{} is not a valid type'.format(t))
 
 
+def connect():
+    comp = mampy.selected()[0]
+    if comp.type == api.MFn.kMeshVertComponent:
+        mamtools.mel('ConnectComponents')
+    else:
+        mamtools.mel('connectTool')
+
 if __name__ == '__main__':
     merge()
