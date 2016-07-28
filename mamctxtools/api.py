@@ -33,18 +33,16 @@ def bevel():
     if not s:
         return logger.warn('Nothing Selected.')
 
-    for comp in s.itercomps():
-        cmds.select(list(comp))
-
-        if comp.type == api.MFn.kMeshEdgeComponent:
-            if comp.is_border(comp.index):
-                contexts.extrude()
-            else:
-                contexts.bevel()
-        elif comp.type == api.MFn.kMeshPolygonComponent:
+    comp = s.itercomps().next()
+    if comp.type == api.MFn.kMeshEdgeComponent:
+        if comp.is_border(comp.index):
             contexts.extrude()
-        elif comp.type == api.MFn.kMeshVertComponent:
-            contexts.extrude()
+        else:
+            contexts.bevel()
+    elif comp.type == api.MFn.kMeshPolygonComponent:
+        contexts.extrude()
+    elif comp.type == api.MFn.kMeshVertComponent:
+        contexts.extrude()
 
 
 @undoable
@@ -59,6 +57,7 @@ def bridge():
         if component.type == api.MFn.kMeshPolygonComponent:
             bridge_face()
         elif component.type == api.MFn.kMeshEdgeComponent:
+            cmds.select(list(component), r=True)
             borders = get_indices_sharing_edge_border(component)
             for each in borders.itercomps():
                 cmds.select(list(each), r=True)
@@ -69,9 +68,8 @@ def bridge():
                     cmds.polyAppend(str(component.dagpath),
                                     s=1, a=(component.index, component.indices[-1]))
                 else:
-                    mel.eval('polyPerformAction polyCloseBorder e 0;')
-
-    cmds.select(list(borders))
+                    cmds.polyCloseBorder(list(each))
+    cmds.select(list(selected), r=True)
 
 
 @undoable
@@ -136,4 +134,4 @@ def connect():
         mamtools.mel('connectTool')
 
 if __name__ == '__main__':
-    merge()
+    bridge()
