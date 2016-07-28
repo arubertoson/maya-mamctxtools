@@ -13,4 +13,3 @@ __license__ = "MIT"
 
 
 from mamctxtools.api import bevel, bridge, detach, merge, connect
-from mamctxtools.contexts import edge_slice
