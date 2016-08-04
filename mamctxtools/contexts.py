@@ -1,10 +1,11 @@
+import collections
 
-from maya import cmds, mel
+from maya import cmds
+from maya.OpenMaya import MEventMessage
 import maya.api.OpenMaya as api
 
 import mampy
 from mampy.utils import DraggerCtx, mvp, undo
-from mampy.dgcomps import MeshVert
 from mampy.dgnodes import DependencyNode
 from mampy.dgcontainers import SelectionList
 
@@ -21,7 +22,27 @@ def get_distance_from_camera(sel):
     return vec.length()
 
 
-class bevel(DraggerCtx):
+class BaseContext(DraggerCtx):
+
+    def __init__(self, name):
+        self.undo_callback_event = None
+        self.previous_ctx = cmds.currentCtx()
+        self.nodes = []
+
+        super(BaseContext, self).__init__(name)
+
+    def setup(self):
+        if not self.undo_callback_event:
+            self.undo_callback_event = MEventMessage.addEventCallback('Undo', self.undo_callback)
+
+    def undo_callback(self, *args):
+        raise NotImplementedError('Implement in {}'.format(self.__class__.__name__))
+
+    def tear_down(self):
+        MEventMessage.removeCallback(self.undo_callback_event)
+
+
+class bevel(BaseContext):
 
     def __init__(self):
         self.name = 'mamtools_bevel_context'
@@ -32,16 +53,17 @@ class bevel(DraggerCtx):
         """
         Create new bevel node and reset attribute values.
         """
-        self.nodes = []
+        super(bevel, self).setup()
+
         version = cmds.about(version=True)
         if version == '2016 Extension 2 SP1':
-            bevel = cmds.polyBevel3
+            bevel_func = cmds.polyBevel3
         else:
-            bevel = cmds.polyBevel
+            bevel_func = cmds.polyBevel
 
         with undo():
             for comp in mampy.selected().itercomps():
-                node = bevel(
+                node = bevel_func(
                     list(comp),
                     offsetAsFraction=True,
                     fraction=0.2,
@@ -56,6 +78,7 @@ class bevel(DraggerCtx):
                 )[0]
                 self.nodes.append(DependencyNode(node))
             cmds.select(cl=True)
+            self.control_object = self.nodes[-1]
 
         # Reset values
         self.segments = 1
@@ -81,6 +104,10 @@ class bevel(DraggerCtx):
         for node in self.nodes:
             node['segments'] = self.segments
 
+    def undo_callback(self, *args):
+        if not self.control_object.exists:
+            cmds.setToolTo(self.previous_ctx)
+
     def release(self):
         """
         """
@@ -90,7 +117,7 @@ class bevel(DraggerCtx):
         self.anchor_segments = self.segments
 
 
-class extrude(DraggerCtx):
+class extrude(BaseContext):
     """
     """
     def __init__(self):
@@ -104,11 +131,14 @@ class extrude(DraggerCtx):
         """
         Create new extrude node and reset attribute values.
         """
-        self.nodes = []
+        # self.nodes = []
+        super(extrude, self).setup()
+
         self.is_vert = False
         self.sel = SelectionList()
 
         with undo():
+            nodes = []
             for comp in mampy.selected().itercomps():
                 cmds.select(list(comp), r=True)
                 if comp.type == api.MFn.kMeshEdgeComponent:
@@ -130,10 +160,13 @@ class extrude(DraggerCtx):
                         width=0,
                     )[0]
                 self.sel.extend(mampy.selected())
-                self.nodes.append(DependencyNode(node))
+                nodes.append(DependencyNode(node))
+            self.nodes.append(nodes)
 
             # Select new created geo and reset values
             cmds.select(list(self.sel), r=True)
+
+        self.control_object = self.nodes[-1][0]
 
         self.thickness = 0.0
         self.offset = 0.0
@@ -159,7 +192,7 @@ class extrude(DraggerCtx):
         Vertical movement changes thickness horizontal changes offset.
         """
         self.update_attribute_values()
-        for node in self.nodes:
+        for node in self.nodes[-1]:
             if self.is_vert:
                 node['length'] = self.thickness
                 node['width'] = self.offset if self.offset > 0 else 0
@@ -187,12 +220,12 @@ class extrude(DraggerCtx):
         if self.active_axis and self.anchorPoint == self.stored_anchor:
             self.update_attribute_values()
             if self.active_axis == 'offset':
-                for node in self.nodes:
+                for node in self.nodes[-1]:
                     if self.is_vert:
                         node['width'] = self.offset if self.offset > 0 else 0
                     node['offset'] = self.offset
             elif self.active_axis == 'thickness':
-                for node in self.nodes:
+                for node in self.nodes[-1]:
                     if self.is_vert:
                         node['length'] = self.thickness
                     node['thickness'] = self.thickness
@@ -211,6 +244,22 @@ class extrude(DraggerCtx):
                 (-self.axis_lock_threshold > thickness)):
             self.active_axis = 'thickness'
 
+    def undo_callback(self, *args):
+        if self.control_object.exists:
+            self.unify_attributes()
+        else:
+            self.nodes.pop()
+            if not self.nodes:
+                cmds.setToolTo(self.previous_ctx)
+                return
+            else:
+                self.control_object = self.nodes[-1][0]
+                self.unify_attributes()
+
+    def unify_attributes(self):
+        self.anchor_offset = self.offset = self.control_object['offset']
+        self.anchor_thickness = self.thickness = self.control_object['thickness']
+
     def release(self):
         """
         Update anchors.
@@ -218,8 +267,7 @@ class extrude(DraggerCtx):
         call super to undochunk
         """
         super(extrude, self).release()
-        self.anchor_offset = self.offset
-        self.anchor_thickness = self.thickness
+        self.unify_attributes()
 
     def update_attribute_values(self):
         """
