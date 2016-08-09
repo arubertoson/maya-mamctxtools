@@ -3,16 +3,14 @@
 import functools
 import logging
 
-from maya import cmds, mel
+from maya import cmds
 import maya.api.OpenMaya as api
 
 import mampy
 from mampy.utils import undoable, repeatable
 from mampy.exceptions import InvalidSelection
 from mampy.computils import (get_border_edges_from_selection,
-                             get_indices_sharing_edge_border,
-                             get_border_loop_from_edge_index,
-                             get_connected_components)
+                             get_border_loop_from_edge_index)
 
 import mamtools
 import mamselect
@@ -56,7 +54,6 @@ def bridge():
     for component in get_border_edges_from_selection(selected).itercomps():
         if component.type == api.MFn.kMeshPolygonComponent:
             bridge_face()
-
         else:
             component = component.to_edge()
             connected = list(component.get_connected())
