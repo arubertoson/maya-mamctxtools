@@ -12,4 +12,4 @@ __version__ = "0.1.2"
 __license__ = "MIT"
 
 
-from mamctxtools.api import bevel, bridge, detach, merge, connect
+from mamctxtools.context_sensitive import bevel, bridge, detach, merge, connect
