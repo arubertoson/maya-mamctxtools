@@ -6,8 +6,8 @@ import maya.api.OpenMaya as api
 
 import mampy
 from mampy.utils import DraggerCtx, mvp, undo
-from mampy.dgnodes import DependencyNode
-from mampy.dgcontainers import SelectionList
+from mampy.nodes import DependencyNode
+from mampy.containers import SelectionList
 
 
 def get_distance_from_camera(sel):
