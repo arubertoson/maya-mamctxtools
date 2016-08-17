@@ -1,13 +1,13 @@
-import collections
-
+"""
+"""
 from maya import cmds
 from maya.OpenMaya import MEventMessage
 import maya.api.OpenMaya as api
 
 import mampy
-from mampy.utils import DraggerCtx, mvp, undo
-from mampy.nodes import DependencyNode
-from mampy.containers import SelectionList
+from mampy._old.utils import DraggerCtx, mvp, undo
+from mampy._old.nodes import DependencyNode
+from mampy._old.containers import SelectionList
 
 
 def get_distance_from_camera(sel):

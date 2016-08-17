@@ -7,10 +7,10 @@ from maya import cmds
 import maya.api.OpenMaya as api
 
 import mampy
-from mampy.utils import undoable, repeatable
-from mampy.exceptions import InvalidSelection
-from mampy.computils import (get_border_edges_from_selection,
-                             get_border_loop_from_edge_index)
+from mampy._old.utils import undoable, repeatable
+from mampy._old.exceptions import InvalidSelection
+from mampy._old.computils import (get_border_edges_from_selection,
+                                  get_border_loop_from_edge_index)
 
 import mamtools
 import mamselect
