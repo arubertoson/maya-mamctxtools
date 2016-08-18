@@ -8,8 +8,8 @@ Mamctxtools Maya context sensitive scripts.
 __author__ = "Marcus Albertsson <marcus.arubertoson@gmail.com>"
 __copyright__ = "Copyright 2016 Marcus Albertsson"
 __url__ = "http://github.com/arubertoson/mamctxtools"
-__version__ = "0.1.2"
+__version__ = "0.1.4"
 __license__ = "MIT"
 
 
-from mamctxtools.context_sensitive import bevel, bridge, detach, merge, connect
+from .custom_context_flow import bevel, bridge, detach, merge, connect
