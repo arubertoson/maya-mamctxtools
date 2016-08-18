@@ -170,7 +170,7 @@ class extrude(BaseContext):
             self.nodes.append(nodes)
 
             # Select new created geo and reset values
-            cmds.select(self.sel.string_list(), r=True)
+            cmds.select(self.sel.cmdslist(), r=True)
 
         self.control_object = self.nodes[-1][0]
 

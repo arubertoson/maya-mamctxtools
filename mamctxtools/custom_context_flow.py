@@ -91,7 +91,7 @@ def bridge_face():
     # Get edge border before deleting face.
     mamselect.mesh.convert('edge')
     # Now safe to delete face and perform bridge.
-    cmds.delete(faces.string_list())
+    cmds.delete(faces.cmdslist())
     cmds.polyBridgeEdge(divisions=0)
 
 
