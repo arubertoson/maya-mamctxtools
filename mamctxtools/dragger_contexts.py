@@ -67,7 +67,7 @@ class bevel(BaseContext):
         with undoable():
             for comp in components:
                 node = bevel_func(
-                    list(comp),
+                    comp.cmdslist(),
                     offsetAsFraction=True,
                     fraction=0.2,
                     segments=1,
@@ -146,7 +146,7 @@ class extrude(BaseContext):
         with undoable():
             nodes = []
             for comp in components:
-                cmds.select(list(comp), r=True)
+                cmds.select(comp.cmdslist(), r=True)
                 if comp.type == api.MFn.kMeshEdgeComponent:
                     node = cmds.polyExtrudeEdge(
                         keepFacesTogether=True,
