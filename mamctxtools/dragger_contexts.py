@@ -25,11 +25,13 @@ def get_distance_from_camera(sel):
 
 class BaseContext(AbstractDraggerCtx):
 
-    def setup(self):
+    def __init__(self):
+        super(BaseContext, self).__init__()
         self.nodes = []
         self.undo_callback_event = None
-        self.previous_ctx = cmds.currentCtx()
 
+    def execute(self):
+        self.previous_ctx = cmds.currentCtx()
         if not self.undo_callback_event:
             self.undo_callback_event = MEventMessage.addEventCallback('Undo', self.undo_callback)
 
@@ -37,7 +39,12 @@ class BaseContext(AbstractDraggerCtx):
         raise NotImplementedError('Implement in {}'.format(self.__class__.__name__))
 
     def tear_down(self):
-        MEventMessage.removeCallback(self.undo_callback_event)
+        try:
+            MEventMessage.removeCallback(self.undo_callback_event)
+        except RuntimeError:
+            pass
+        self.nodes = []
+        self.undo_callback_event = None
 
 
 class Bevel(BaseContext):
@@ -50,10 +57,6 @@ class Bevel(BaseContext):
     _default_segments = 0
     _default_fraction = 0.2
 
-    def __init__(self):
-        super(Bevel, self).__init__()
-        self.run()
-
     def toggle_chamfer(self):
         if not self.nodes:
             return
@@ -61,11 +64,17 @@ class Bevel(BaseContext):
             for node in self.nodes:
                 node.attr['chamfer'] = not(node.attr['chamfer'])
 
-    def setup(self):
+    def execute(self):
         """
         Create new bevel node and reset attribute values.
         """
-        super(Bevel, self).setup()
+        super(Bevel, self).execute()
+        self.anchor_mitering = self.mitering = 0.0
+        self.anchor_mitering_along = self.mitering_along = 0.0
+        self.anchor_segments = self.segments = self._default_segments
+        self.fraction = self.anchor_fraction = self._default_fraction
+        self.control_object = None
+        # self.anchor_segments = self.segments - 1
 
         version = cmds.about(version=True)
         if version == '2016 Extension 2 SP1':
@@ -85,7 +94,7 @@ class Bevel(BaseContext):
                     fillNgons=True,
                     mergeVertices=True,
                     mergeVertexTolerance=0.0001,
-                    smoothingAngle=30,
+                    smoothingAngle=40,
                     miteringAngle=180,
                     # angleTolerance=180,
                 )[0]
@@ -93,16 +102,8 @@ class Bevel(BaseContext):
             cmds.select(cl=True)
             self.control_object = self.nodes[-1]
 
-        # Reset values
-
-    def tear_down(self):
-        super(Bevel, self).tear_down()
-
-        # Reset factory Bevels
-        self.segments = self._default_segments
-        self.anchor_segments = self.segments - 1
-        self.fraction = self.anchor_fraction = self._default_fraction
-        self.control_object = None
+    def press_ctrl_shift_left(self):
+        self.toggle_chamfer()
 
     def drag_left(self):
         change_fraction = (self.dragPoint[0] - self.anchorPoint[0]) * 0.004
@@ -119,9 +120,28 @@ class Bevel(BaseContext):
         self.segments = change_segment + self.anchor_segments
 
         if self.segments < 1: self.segments = 1
-
         for node in self.nodes:
             node.attr['segments'] = self.segments
+
+    def drag_ctrl_left(self):
+        change_mitering = int((self.dragPoint[0] - self.anchorPoint[0]) * 0.01)
+        self.mitering = change_mitering + self.anchor_mitering
+        print(self.mitering, change_mitering, self.anchor_mitering)
+
+        if self.mitering > 4: self.mitering = 4.0
+        if self.mitering < 0: self.mitering = 0.0
+        for node in self.nodes:
+            node.attr['mitering'] = self.mitering
+
+    def drag_ctrl_middle(self):
+        change_mitering_along = int((self.dragPoint[0] - self.anchorPoint[0]) * 0.01)
+        self.mitering_along = change_mitering_along + self.anchor_mitering_along
+        print(self.mitering_along, change_mitering_along, self.anchor_mitering_along)
+
+        if self.mitering_along > 3: self.mitering_along = 3.0
+        if self.mitering_along < 0: self.mitering_along = 0.0
+        for node in self.nodes:
+            node.attr['miterAlong'] = self.mitering_along
 
     def undo_callback(self, *args):
         if not self.control_object.exists():
@@ -134,6 +154,7 @@ class Bevel(BaseContext):
 
         self.anchor_fraction = self.fraction
         self.anchor_segments = self.segments
+        self.anchor_mitering = self.mitering
 
 
 class Extrude(BaseContext):
@@ -145,12 +166,11 @@ class Extrude(BaseContext):
 
     _axis_lock_threshold = 3
 
-    def setup(self):
+    def execute(self):
         """
         Create new extrude node and reset attribute values.
         """
-        super(Extrude, self).setup()
-
+        super(Extrude, self).execute()
         self.thickness = self.offset = 0.0
         self.anchor_thickness = self.anchor_offset = 0.0
         self.is_vert = False
@@ -189,25 +209,22 @@ class Extrude(BaseContext):
 
         self.control_object = self.nodes[-1][0]
 
-    def tear_down(self):
-        super(Extrude, self).tear_down()
-
-        self.thickness = self.offset = 0.0
-        self.anchor_thickness = self.anchor_offset = 0.0
-        self.is_vert = False
-        self.control_object = None
+    def press_ctrl_middle(self):
+        if self.nodes:
+            for node in self.nodes[-1]:
+                node.attr['keepFacesTogether'] = not(node.attr['keepFacesTogether'])
 
     def press_shift_left(self):
         """
         Create new extrude node with shift modifier held.
         """
-        self.setup()
+        self.execute()
 
     def press_ctrl_shift_left(self):
         """
         Create new extrude node with shift+ctrl modifier held.
         """
-        self.setup()
+        self.execute()
 
     def drag_left(self):
         """
@@ -307,4 +324,4 @@ class Extrude(BaseContext):
 
 
 if __name__ == '__main__':
-    Extrude()
+    Extrude().set_context()
