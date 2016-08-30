@@ -46,18 +46,18 @@ def bevel():
             # When extruding border edges we don't want the context tool to handle
             # the manipulation. Just restore old tool right away.
             with restore_context():
-                dragger_contexts.Extrude()
+                dragger_contexts.Extrude().execute()
         elif not any(component.is_border(i) for i in component.indices):
-            dragger_contexts.Bevel().run()
+            dragger_contexts.Bevel().set_context()
         else:
             raise InvalidSelection('Mixed selections, cant mix edge borders with '
                                    'non borders when beveling.')
     else:
         # Else perform an extrude on polygon or vertex.
         if cmds.currentCtx() == dragger_contexts.Extrude.NAME:
-            dragger_contexts.Extrude().setup()
+            dragger_contexts.Extrude().execute()
         else:
-            dragger_contexts.Extrude().run()
+            dragger_contexts.Extrude().set_context()
 
 
 @undoable()
