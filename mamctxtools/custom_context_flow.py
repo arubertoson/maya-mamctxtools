@@ -14,6 +14,8 @@ from mampy.core.exceptions import (NothingSelected, InvalidComponentSelection,
 from mampy.core.selectionlist import get_borders_from_complist
 from mampy.core.components import get_border_loop_indices_from_edge_index
 
+from mampy.utils.decorators import restore_context
+
 import mamtools
 import mamselect
 
@@ -43,17 +45,19 @@ def bevel():
         if all(component.is_border(i) for i in component.indices):
             # When extruding border edges we don't want the context tool to handle
             # the manipulation. Just restore old tool right away.
-            ctx = cmds.currentCtx()
-            dragger_contexts.extrude()
-            cmds.setToolTo(ctx)
+            with restore_context():
+                dragger_contexts.Extrude()
         elif not any(component.is_border(i) for i in component.indices):
-            dragger_contexts.bevel()
+            dragger_contexts.Bevel().run()
         else:
             raise InvalidSelection('Mixed selections, cant mix edge borders with '
                                    'non borders when beveling.')
     else:
         # Else perform an extrude on polygon or vertex.
-        dragger_contexts.extrude()
+        if cmds.currentCtx() == dragger_contexts.Extrude.NAME:
+            dragger_contexts.Extrude().setup()
+        else:
+            dragger_contexts.Extrude().run()
 
 
 @undoable()
@@ -75,7 +79,7 @@ def bridge():
         if len(connected) == 1:
             border_edge = get_border_loop_indices_from_edge_index(component.index)
             if border_edge == set(component.indices):
-                cmds.polyCloseBorder(list(component))
+                cmds.polyCloseBorder(component.cmdslist())
             else:
                 cmds.polyAppend(
                     str(component.dagpath),

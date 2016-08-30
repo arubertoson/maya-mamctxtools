@@ -6,33 +6,30 @@ import maya.api.OpenMaya as api
 
 import mampy
 from mampy.core import mvp
+from mampy.core.datatypes import BoundingBox
 from mampy.core.selectionlist import ComponentList
 from mampy.core.dagnodes import DependencyNode, Camera
-from mampy.utils import undoable, AbstractDraggerCtx
+from mampy.utils import undoable, AbstractDraggerCtx, Singleton
 
 
 def get_distance_from_camera(sel):
     view = mvp.Viewport.active()
     camera = Camera(view.camera)
 
-    vec = api.MPoint()
-    for i in sel:
-        vec += i.bbox.center
+    bbox = BoundingBox()
+    for i in sel or []:
+        bbox.expand(i.bbox)
 
-    vec = camera.bbox.center - (vec / len(sel))
-    return vec.length()
+    return bbox.center.distanceTo(camera.transform.bbox.center)
 
 
 class BaseContext(AbstractDraggerCtx):
 
-    def __init__(self):
-        super(BaseContext, self).__init__()
-
+    def setup(self):
+        self.nodes = []
         self.undo_callback_event = None
         self.previous_ctx = cmds.currentCtx()
-        self.nodes = []
 
-    def setup(self):
         if not self.undo_callback_event:
             self.undo_callback_event = MEventMessage.addEventCallback('Undo', self.undo_callback)
 
@@ -43,19 +40,32 @@ class BaseContext(AbstractDraggerCtx):
         MEventMessage.removeCallback(self.undo_callback_event)
 
 
-class bevel(BaseContext):
+class Bevel(BaseContext):
+    """
+    """
+    __metaclass__ = Singleton
 
     NAME = 'mamtools_bevel_context'
 
+    _default_segments = 0
+    _default_fraction = 0.2
+
     def __init__(self):
-        super(bevel, self).__init__()
+        super(Bevel, self).__init__()
         self.run()
+
+    def toggle_chamfer(self):
+        if not self.nodes:
+            return
+        else:
+            for node in self.nodes:
+                node.attr['chamfer'] = not(node.attr['chamfer'])
 
     def setup(self):
         """
         Create new bevel node and reset attribute values.
         """
-        super(bevel, self).setup()
+        super(Bevel, self).setup()
 
         version = cmds.about(version=True)
         if version == '2016 Extension 2 SP1':
@@ -84,9 +94,15 @@ class bevel(BaseContext):
             self.control_object = self.nodes[-1]
 
         # Reset values
-        self.segments = 1
-        self.anchor_segments = 0
-        self.fraction = self.anchor_fraction = 0.2
+
+    def tear_down(self):
+        super(Bevel, self).tear_down()
+
+        # Reset factory Bevels
+        self.segments = self._default_segments
+        self.anchor_segments = self.segments - 1
+        self.fraction = self.anchor_fraction = self._default_fraction
+        self.control_object = None
 
     def drag_left(self):
         change_fraction = (self.dragPoint[0] - self.anchorPoint[0]) * 0.004
@@ -114,37 +130,36 @@ class bevel(BaseContext):
     def release(self):
         """
         """
-        super(bevel, self).release()
+        super(Bevel, self).release()
 
         self.anchor_fraction = self.fraction
         self.anchor_segments = self.segments
 
 
-class extrude(BaseContext):
+class Extrude(BaseContext):
     """
     """
+    __metaclass__ = Singleton
 
     NAME = 'mamtools_extrude_context'
 
-    def __init__(self):
-        super(extrude, self).__init__()
-
-        self.axis_lock_threshold = 3
-        self.run()
+    _axis_lock_threshold = 3
 
     def setup(self):
         """
         Create new extrude node and reset attribute values.
         """
-        # self.nodes = []
-        super(extrude, self).setup()
+        super(Extrude, self).setup()
 
+        self.thickness = self.offset = 0.0
+        self.anchor_thickness = self.anchor_offset = 0.0
         self.is_vert = False
-        self.sel = ComponentList()
+        self.control_object = None
 
         components = mampy.complist()
         with undoable():
             nodes = []
+            self.sel = ComponentList()
             for comp in components:
                 cmds.select(comp.cmdslist(), r=True)
                 if comp.type == api.MFn.kMeshEdgeComponent:
@@ -174,10 +189,13 @@ class extrude(BaseContext):
 
         self.control_object = self.nodes[-1][0]
 
-        self.thickness = 0.0
-        self.offset = 0.0
-        self.anchor_offset = 0.0
-        self.anchor_thickness = 0.0
+    def tear_down(self):
+        super(Extrude, self).tear_down()
+
+        self.thickness = self.offset = 0.0
+        self.anchor_thickness = self.anchor_offset = 0.0
+        self.is_vert = False
+        self.control_object = None
 
     def press_shift_left(self):
         """
@@ -243,11 +261,11 @@ class extrude(BaseContext):
         # Lock axis to threshold
         offset = self.dragPoint[0] - self.anchorPoint[0]
         thickness = self.dragPoint[1] - self.anchorPoint[1]
-        if ((offset > self.axis_lock_threshold) or
-                (-self.axis_lock_threshold > offset)):
+        if ((offset > self._axis_lock_threshold) or
+                (-self._axis_lock_threshold > offset)):
             self.active_axis = 'offset'
-        elif ((thickness > self.axis_lock_threshold) or
-                (-self.axis_lock_threshold > thickness)):
+        elif ((thickness > self._axis_lock_threshold) or
+                (-self._axis_lock_threshold > thickness)):
             self.active_axis = 'thickness'
 
     def undo_callback(self, *args):
@@ -272,7 +290,7 @@ class extrude(BaseContext):
 
         call super to undochunk
         """
-        super(extrude, self).release()
+        super(Extrude, self).release()
         self.unify_attributes()
 
     def update_attribute_values(self):
@@ -289,4 +307,4 @@ class extrude(BaseContext):
 
 
 if __name__ == '__main__':
-    extrude()
+    Extrude()
