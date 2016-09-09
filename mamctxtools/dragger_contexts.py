@@ -30,13 +30,10 @@ class BaseContext(AbstractDraggerCtx):
         self.nodes = []
         self.undo_callback_event = None
 
-    def execute(self):
-        self.previous_ctx = cmds.currentCtx()
-        if not self.undo_callback_event:
-            self.undo_callback_event = MEventMessage.addEventCallback('Undo', self.undo_callback)
-
     def undo_callback(self, *args):
-        raise NotImplementedError('Implement in {}'.format(self.__class__.__name__))
+        if not cmds.currentCtx() == self.NAME:
+            self.MEventMessage.removeCallback(self.undo_callback_event)
+            return
 
     def tear_down(self):
         try:
@@ -45,6 +42,13 @@ class BaseContext(AbstractDraggerCtx):
             pass
         self.nodes = []
         self.undo_callback_event = None
+
+    def set_context(self):
+        self.previous_ctx = cmds.currentCtx()
+        if not self.undo_callback_event:
+            self.undo_callback_event = MEventMessage.addEventCallback('Undo',
+                                                                      self.undo_callback)
+        super(BaseContext, self).set_context()
 
 
 class Bevel(BaseContext):
@@ -126,7 +130,6 @@ class Bevel(BaseContext):
     def drag_ctrl_left(self):
         change_mitering = int((self.dragPoint[0] - self.anchorPoint[0]) * 0.01)
         self.mitering = change_mitering + self.anchor_mitering
-        print(self.mitering, change_mitering, self.anchor_mitering)
 
         if self.mitering > 4: self.mitering = 4.0
         if self.mitering < 0: self.mitering = 0.0
@@ -136,7 +139,6 @@ class Bevel(BaseContext):
     def drag_ctrl_middle(self):
         change_mitering_along = int((self.dragPoint[0] - self.anchorPoint[0]) * 0.01)
         self.mitering_along = change_mitering_along + self.anchor_mitering_along
-        print(self.mitering_along, change_mitering_along, self.anchor_mitering_along)
 
         if self.mitering_along > 3: self.mitering_along = 3.0
         if self.mitering_along < 0: self.mitering_along = 0.0
@@ -144,6 +146,7 @@ class Bevel(BaseContext):
             node.attr['miterAlong'] = self.mitering_along
 
     def undo_callback(self, *args):
+        super(Bevel, self).undo_callback()
         if not self.control_object.exists():
             cmds.setToolTo(self.previous_ctx)
 
@@ -286,6 +289,7 @@ class Extrude(BaseContext):
             self.active_axis = 'thickness'
 
     def undo_callback(self, *args):
+        super(Extrude, self).undo_callback()
         if self.control_object.exists():
             self.unify_attributes()
         else:
